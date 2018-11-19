@@ -1,0 +1,84 @@
+Kelompok 'Dah, itu aja'
+- Naufal 13517064 
+- Mahanti 13517085
+- Anissa 13517121
+- Syaiful 13517139
+
+K-01
+
+- Alur Permainan
+Saat awal permainan akan masuk ke program lalu program akan meminta input nama pemain, setelah itu akan ditampilkan list dari command-command yang tersedia.
+Saat start game, pemain akan dapat memilih map yang disediakan sesuai ukurannya (ada 3 macam ukuran). Saat memulai permainan, pemain akan ditempatkan random di map. Jumlah enemy akan 	menyesuaikan map dan posisinya akan ditempatkan random.
+Player dapat menyerang musuh dengan tanpa senjata, tetapi damagenya kecil. Enemy juga akan mempunyai health. Tiap ditembak tidak langsung mati, tetapi health musuh berkurang sesuai senjata yang digunakan (damage tiap senjata berbeda). Musuh akan langsung mendapatkan weapon Pistol G2-Combat.
+Setiap 7 move deadzone akan membesar. Efek deadzone hanya akan mengurangi 50 health dan saat pemain di deadzone akan ada peringatannya.
+Pemain dinyatakan menang jika musuh sudah habis, sedangkan pemain dinyatakan kalah jika healthnya habis.
+
+Start player:
+Health    : 100
+Weapon    : Hand
+Ammo      : 0
+Max Inventory : 0
+Inventory : Null
+
+Enemy:
+Health    : 50
+Weapon    : Pistol G2-Combat
+Ammo      : infinite
+
+adjustment:
++ sisa enemy
++ pembatas awal '#'
++ bag buat nambah max inventory sesuai level, ditukar
+
+Rencana weapon yang disediakan:
+- Tangan           (damage: 5)
+- Bambu Runcing    (damage: langsung mati)
+- Senapan SSX      (damage: 30)
+- Pistol G2-Combat (damage: 20)
+
+Armor :
+- Helmet (armor: 20)
+- Kevlar (armor: 50)
+- Caping (armor: 15)
+- Batik  (armor: 25)
+
+Item:
+- Medicine    (health : +50)
+- Bandage     (health : +25)
+- Sport drink (health : +10)
+- Bomb        (damage :  50)
+- Scope       (damage weapon : +10)
+
+file eksternal:
+- map_big     (12x12, include pembatas awal)
+- map_bigger  (17x17, include pembatas awal)
+- map_biggest (22x22, include pembatas awal)
+- save_game
+
+Rules:
+start.
+help.
+startgame.
+quit.
+look.
+map.
+w. a. s. d.
+take(Object).
+drop(Object).
+use(Object).
+attack.
+status.
+save(Filename).
+load(Filename).
+matriks(map).
+
+Fact :
+weapon(object).
+item(object).
+armor(object).
+health(remaining health).
+max_inventory(sesuai bag).
+
+
+
+------------------------------------------------------------------------------
