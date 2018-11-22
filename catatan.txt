@@ -1,0 +1,11 @@
+use object masih salah <- weapon masalahnya di add_item
+attack
+map
+file eksternal
+
+//max inventory
+//deadzone bertambah tiap +- 7 satuan waktu
+//kena deadzone berkurang nyawa
+updatemap <- butuh map
+updateenemy
+printItem belom semuanya(pake fail tp gagal)
