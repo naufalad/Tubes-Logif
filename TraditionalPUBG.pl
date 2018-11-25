@@ -23,6 +23,11 @@
 :- dynamic(ammo/3).
 :- dynamic(game_started/0).
 :- dynamic(time/1).
+:- dynamic(kiriatas/2).
+:- dynamic(kananatas/2).
+:- dynamic(kiribawah/2).
+:- dynamic(kananbawah/2).
+:- dynamic(terrain/3).
 
 /*status pemain awal*/
 init :-
@@ -38,7 +43,7 @@ init :-
     asserta(playersWeapon(hand)),!,
     asserta(playersArmor(0)),!,
     asserta(playersAmmo(0)),!,
-    asserta(playersMaxInventory(0)),!,
+    asserta(playersMaxInventory(3)),!,
     asserta(playersItem([])),!,
 
     /*status enemy*/
@@ -76,7 +81,7 @@ init :-
     init_player,
     init_enemy(10),
     asserta(remainingEnemy(10)),!,
-    init_every_item.
+    init_every_item, init_terrain, init_zone.
 	
 init_player:-
     playersHealth(Health),
@@ -114,9 +119,22 @@ get_remainingEnemy(Enemy) :-
 	remainingEnemy(Enemy).
 
 get_time(N) :- time(N).
-	
+
+init_zone:-
+	asserta(kiriatas(1,1)),!,
+	asserta(kiribawah(1,10)),!,
+	asserta(kananatas(10,1)),!,
+	asserta(kananbawah(10,10)),!,
+	forall(between(1,10,J), (
+		forall(between(1,10,I), (
+			asserta(location(I,J,safezone)),!
+		)),
+		nl
+	)),
+!.
+
 start :- 
-	nl, write('Welcome to...'),nl,
+	init,nl, write('Welcome to...'),nl,
 	write('#########################################################################################################'),nl,
 	write('#        ##       ######  #####       ###    ##        ##    ####    ####  #######  #####  #####  #######'),nl,
 	write('####  #####  ####  ####    ####  ####  ###  ######  ######  ####  ##  ###   ######  ####    ####  #######'),nl,
@@ -143,13 +161,12 @@ start :-
 		write('Kelompok : Dah, Itu aja.'),nl,
 		write('Naufal Aditya Dirgandhavi/13517064'),nl,
 		write('Mahanti Indah Rahajeng/13517085'),nl,
-		write('Annisa Putri Dinanti/13517121'),nl,
+		write('Anissa Putri Dinanti/13517121'),nl,
 		write('Syaiful Anwar/13517139'),nl,nl,
 		 write('Welcome to the battlefield!'), nl,
 		 write('You have been chosen as one of the lucky contestants.'),nl,
 		 write('Be the last man standing and you will be remembered as one of the victors.'), nl,
-		 nl, help,
-        init.
+		 nl, help.
          
 help :- write('Available commands : '), nl,
 		tab(4), write('start. -- start the game!'), nl,
@@ -174,27 +191,33 @@ help :- write('Available commands : '), nl,
 		write('I = item'), nl,
 		write('E = enemy'), nl,
 		write('- = accessible'), nl,
-		write('X = inaccessible'), nl.
+		write('# = inaccessible'), nl,
+		write('X = dead zone').
         
 quit :- 
-	retractall(location(_,_,_)), 
+	retractall(location(_,_,_)),retractall(player(_,_,_,_,_,_,_,_)),
     retractall(playersHealth(_)), retractall(playersWeapon(_)), retractall(playersAmmo(_)),
     retractall(playersArmor(_)), retractall(playersMaxInventory(_,_)),
     retractall(playersItem(_)), retractall(enemy(_,_,_,_,_)),
-    retractall(remaininingEnemy(_)),retractall(coordinate(_,_)),
+    retractall(remaininingEnemy(_)), retractall(coordinate(_,_)),
+    retractall(enemysHealth(_)), retractall(enemysWeapon(_)),
+    retractall(weapon(_,_,_)), retractall(armor(_,_,_)), retractall(medicine(_,_,_)),
+    retractall(item(_,_)), retractall(ammo(_,_,_)), retractall(time(_)),
     write('You have left the battlefield.'),nl,
     write('Thank you for playing!'),nl,nl,
-	retract(game_started).
-    /*halt.*/
+	retract(game_started),
+    halt.
 
 status :- 
 		  get_health(Health), write('Health: '), write(Health), nl,
 		  get_armor(Armor), write('Armor: '), write(Armor), nl,
           get_weapon(Weapon), write('Weapon: '), write(Weapon), nl,
-          get_ammo(Ammo), write('Ammo: '), write(Ammo), nl,
+		  get_ammo(Ammo), write('Ammo: '), write(Ammo), nl,
+		  get_maxinventory(A), write('Max Inventory : '), write(A),nl,
 		  get_itemlist(ItemList), write('Item list: '), write(ItemList), nl,
 		  get_coordinates(X,Y), write('Location : '), write(X), write(','), write(Y),nl,
-          remainingEnemy(X), write('Remaining Enemy: '), write(X),nl.
+		  remainingEnemy(Z), write('Remaining Enemy: '), write(Z),nl,
+		  time(N), write('Time played:'), write(N	),nl.
 
 
 init_enemy(0) :- !.
@@ -212,10 +235,13 @@ take(Object):-
 	take_item(Object), nl,
 	format('Success! ~w added.',[Object]),nl,!.
 take(Object):-
-	nl,format('There\'s no ~w here.',[Object]),nl, fail.
+	nl,
+	player(X,Y,_,_,_,_,_,_),
+	\+location(X,Y,Object),
+	format('There\'s no ~w here.',[Object]),nl, fail.
 take(_):-
 	get_itemlist(ItemList), get_maxinventory(MaxInventory), count(ItemList,N),
-	N = MaxInventory,!,
+	N =:= MaxInventory,!,
 	write('Your bag is full, you can use or drop some to add.').
 
 count([],0).
@@ -341,35 +367,40 @@ use_objecttype(Object) :-
 /*armor*/
 use_objecttype(Object) :-
 	armor(_,Object,Z),!,
-	/*retract(playersArmor(Armor)),*/
-	retract(player(X,Y,Health,Weapon,Ammo,ItemList,MaxInventory, Armor)),
 	X1 is Armor + Z,
 	X1 > 50,!, X1 is 50,
-	asserta(player(X,Y,Health,Weapon,Ammo,ItemList,MaxInventory, X1)),!.
-	/*asserta(playersArmor(X1)),!.*/
-use_objecttype(Object) :-
-	armor(_,Object,Z),
-	/*retract(playersArmor(Armor)),*/
+	retract(playersArmor(Armor)),
+	asserta(player(X,Y,Health,Weapon,Ammo,ItemList,MaxInventory, X1)),
 	retract(player(X,Y,Health,Weapon,Ammo,ItemList,MaxInventory, Armor)),
+	asserta(playersArmor(X1)),!.
+use_objecttype(Object) :-
+	armor(_,Object,Z),!,
 	X1 is Armor + Z,
+	retract(playersArmor(Armor)),
+	asserta(playersArmor(X1)),
+	retract(player(X,Y,Health,Weapon,Ammo,ItemList,MaxInventory, Armor)),
 	asserta(player(X,Y,Health,Weapon,Ammo,ItemList,MaxInventory, X1)),!.
-	/*asserta(playersArmor(X1)),!.*/
+
 /*medicine*/
 use_objecttype(Object) :-
 	medicine(_,Object,Z),
-	retract(playersHealth(Health)),
-	retract(player(X,Y,Health,Weapon,Ammo,ItemList,MaxInventory, Armor)),
+	get_health(Health),
 	X1 is Health + Z,
 	X1>100, X1 is 100,
-	asserta(player(X,Y,X1,Weapon,Ammo,ItemList,MaxInventory, Armor)),!,
-	asserta(playersHealth(X1)),!.
+	retract(playersHealth(Health)),
+	asserta(playersHealth(X1)),!,
+	retract(player(X,Y,Health,Weapon,Ammo,ItemList,MaxInventory, Armor)),
+	asserta(player(X,Y,X1,Weapon,Ammo,ItemList,MaxInventory, Armor)),!.
+
 use_objecttype(Object) :-
 	medicine(_,Object,Z),
-	retract(playersHealth(Health)),
-	retract(player(X,Y,Health,Weapon,Ammo,ItemList,MaxInventory, Armor)),
+	get_health(Health),
 	X1 is Health + Z,
-	asserta(player(X,Y,X1,Weapon,Ammo,ItemList,MaxInventory, Armor)),!,
-	asserta(playersHealth(X1)),!.
+	retract(playersHealth(Health)),
+	asserta(playersHealth(X1)),!,
+	retract(player(X,Y,Health,Weapon,Ammo,ItemList,MaxInventory, Armor)),
+	asserta(player(X,Y,X1,Weapon,Ammo,ItemList,MaxInventory, Armor)),!.
+
 /*ammo*/	
 use_objecttype(ammo) :-
 	ammo(_,_,Z),
@@ -443,50 +474,53 @@ use_objecttype(bigBag) :-
 	asserta(player(X,Y,Health,Weapon,Ammo,ItemList,X1, Armor)),!.
 /*jangan lupa ngecek tiap kali sekalian ngupdate*/
 /* kondisi menang*/
-win_con :- get_remainingEnemy(N), N =:= 0,!.
+win_con :- get_remainingEnemy(N), N =:= 0,!, write('Congratulations! You have win the game'), quit.
 /* kondisi kalah */
-lose_con :- get_health(Health), Health=:=0,!.
-
+lose_con :- get_health(Health), Health=:=0,!, write('Oh no! You have don\'t have any life, your name will always be remembered, comrades.'), quit.
 w :-
 	get_coordinates(_,Y),
-	Y-1 < 1, write('You\'re already at the corner, nothing happened.').
+	Y-1 < 1, write('You\'re already at the corner, nothing happened.'),!.
 w :-
 	get_coordinates(X,Y),
 	retract(player(X,Y,Health,Weapon,Ammo,ItemList,MaxInventory, Armor)),
 	retract(location(X,Y,player)), retract(time(N)),
 	Y1 is Y-1, N1 is N+1,
 	asserta(player(X,Y1,Health,Weapon,Ammo,ItemList,MaxInventory, Armor)),!,
-	asserta(location(X,Y1,player)),!,asserta(time(N1)),!.
+	asserta(location(X,Y1,player)),!,asserta(time(N1)),!,
+	updateMap,deadZoneEffect(X,Y1),!.
 a :-
 	get_coordinates(X,_),
-	X-1 < 1, write('You\'re already at the corner, nothing happened.').
+	X-1 < 1, write('You\'re already at the corner, nothing happened.'),!.
 a :-
 	get_coordinates(X,Y),
 	retract(player(X,Y,Health,Weapon,Ammo,ItemList,MaxInventory, Armor)),
 	retract(location(X,Y,player)),retract(time(N)),
 	X1 is X-1,N1 is N+1,
 	asserta(player(X1,Y,Health,Weapon,Ammo,ItemList,MaxInventory, Armor)),!,
-	asserta(location(X1,Y,player)),!, asserta(time(N1)),!.
+	asserta(location(X1,Y,player)),!, asserta(time(N1)),!,
+	updateMap,deadZoneEffect(X1,Y),!.
 s :-
 	get_coordinates(_,Y),
-	Y+1 > 10, write('You\'re already at the corner, nothing happened.').
+	Y+1 > 10, write('You\'re already at the corner, nothing happened.'),!.
 s :-
 	get_coordinates(X,Y),
 	retract(player(X,Y,Health,Weapon,Ammo,ItemList,MaxInventory, Armor)),
 	retract(location(X,Y,player)),retract(time(N)),
 	Y1 is Y+1,N1 is N+1,
 	asserta(player(X,Y1,Health,Weapon,Ammo,ItemList,MaxInventory, Armor)),!,
-	asserta(location(X,Y1,player)),!, asserta(time(N1)),!.
+	asserta(location(X,Y1,player)),!, asserta(time(N1)),!,
+	updateMap,deadZoneEffect(X,Y1),!.
 d :-
 	get_coordinates(X,_),
-	X+1 > 10, write('You\'re already at the corner, nothing happened.').
+	X+1 > 10, write('You\'re already at the corner, nothing happened.'),!.
 d :-
 	get_coordinates(X,Y),
 	retract(player(X,Y,Health,Weapon,Ammo,ItemList,MaxInventory, Armor)),
 	retract(location(X,Y,player)),retract(time(N)),
 	X1 is X+1,N1 is N+1,
 	asserta(player(X1,Y,Health,Weapon,Ammo,ItemList,MaxInventory, Armor)),!,
-	asserta(location(X1,Y,player)),!, asserta(time(N1)),!.
+	asserta(location(X1,Y,player)),!, asserta(time(N1)),!,
+	updateMap,deadZoneEffect(X1,Y),!.
 
 look :-
 	get_coordinates(X,Y),
@@ -510,6 +544,9 @@ printObject(_,Y) :-
 	Y<1, write('#').
 printObject(_,Y) :-
 	Y>10, write('#').
+printObject(X,Y) :-
+	location(X,Y,Object),
+	Object == deadZone, write('X'),!.
 printObject(X,Y):-
 	enemy(_,X,Y,_,_),!,
 	write('E').
@@ -526,41 +563,214 @@ printObject(X,Y):-
 	armor(_,Object,_),!,
 	write('A').
 printObject(X,Y):-
-	location(X,Y,Object),
-	item(_,Object),
-	Object\=player, \+enemy(Object,_,_,_,_),!,
-	write('I').
-printObject(X,Y):-
 	ammo(X,Y,_),!,
 	write('O').
+printObject(X,Y):-
+	location(X,Y,Object),
+	item(_,Object),
+	Object\=player,Object\=safezone,Object\=deadZone, \+enemy(Object,_,_,_,_),!,
+	write('I').
 printObject(X,Y) :-
 	player(X,Y,_,_,_,_,_,_),!,
 	write('P').
 printObject(_,_) :- write('-').
 
 printItem(X,Y) :-
-	location(X,Y,N),
-	weapon(_,N,_),!,
-	format('At the place where you stood, there\'s a ~w.',[N]),nl,!.
-printItem(X,Y) :-
-	location(X,Y,N),
-	armor(_,N,_),!,
-	format('At the place where you stood, there\'s a ~w.',[N]),nl,!.
-printItem(X,Y) :-
-	location(X,Y,N),
-	N == 'ammo',!,
-	format('At the place where you stood, there\'s a ~w.',[N]),nl,!.
+	location(X,Y,N), N == deadZone,!,
+	write('You\'re at the dead zone, your health is decreased by 7. Get outta from there!'),nl,fail.
 printItem(X,Y) :-
 	location(X,Y,N),
 	medicine(_,N,_),!,
-	format('At the place where you stood, there\'s a ~w.',[N]),nl,!.
+	format('At the place where you stood, there\'s a ~w.',[N]),nl,fail.
 printItem(X,Y) :-
 	location(X,Y,N),
-	item(_,N),!,N\=player, \+enemy(N,_,_,_,_),!,
-	format('At the place where you stood, there\'s a ~w.',[N]),nl,!.
-
+	weapon(_,N,_),!,
+	format('At the place where you stood, there\'s a ~w.',[N]),nl,fail.
+printItem(X,Y) :-
+	location(X,Y,N),
+	armor(_,N,_),!,
+	format('At the place where you stood, there\'s a ~w.',[N]),nl,fail.
+printItem(X,Y) :-
+	location(X,Y,N),
+	enemy(N,_,_,_,_),!,
+	format('You see there\'s an enemy with code ~w, kill him before he could touch you!',[N]),nl,fail.
+printItem(X,Y) :-	
+	location(X,Y,N),
+	N == 'ammo',!,
+	format('At the place where you stood, there\'s a ~w.',[N]),nl,fail.
+printItem(X,Y) :-
+	location(X,Y,N),
+	item(_,N),N\=player, \+enemy(N,_,_,_,_),N\=safezone,N\=deadZone,!,
+	format('At the place where you stood, there\'s a ~w.',[N]),nl,fail.
+printItem(_,_) :- !.
 deadZoneEffect(X,Y) :- 
 	location(X,Y,deadZone), retract(player(X,Y,Health,Weapon,Ammo,ItemList,MaxInventory, Armor)),
-	X1 is Health-7, asserta(player(X,Y,X1,Weapon,Ammo,ItemList,MaxInventory, Armor)),!.
+	X1 is Health - 7, asserta(player(X,Y,X1,Weapon,Ammo,ItemList,MaxInventory, Armor)).
+updateMap :-
+	time(N), N mod 7 =:= 0,!,
+	retract(kiriatas(A,B)), retract(kananbawah(G,H)), retract(kiribawah(C,D)), retract(kananatas(E,F)),
+	A1 is A+1, B1 is B+1, C1 is C+1, D1 is D-1, E1 is E-1, F1 is F+1, G1 is G-1, H1 is H-1,
+	/*retractall(location(A,_,_)),retractall(location(G,_,_)),retractall(location(_,B,_)), retractall(location(_,H,_)),*/
+	asserta(location(A,_,deadZone)),!,asserta(location(G,_,deadZone)),asserta(location(_,B,deadZone)),!, asserta(location(_,H,deadZone)),!,
+	asserta(kiriatas(A1,B1)),!, asserta(kananbawah(G1,H1)),!, asserta(kiribawah(C1,D1)),!, asserta(kananatas(E1,F1)),!.
+/* map */
+map :- print_map(0,0), nl, !.
+print_map(12,11):- !.
+print_map(12,Y):-
+    Y2 is Y+1, nl, print_map(0,Y2),!.
+print_map(X,Y):-
+    Y= 0, X2 is X+1 ,print_format(X,Y),!,
+    print_map(X2,Y).
+print_map(X,Y):-
+    Y=11,X2 is X+1, print_format(X,Y),!,
+    print_map(X2,Y).
+print_map(X,Y):-
+    X= 0,X2 is X+1, print_format(X,Y),!,
+    print_map(X2,Y).
+print_map(X,Y):-
+    X=11,X2 is X+1, print_format(X,Y),!,
+    print_map(X2,Y).
+print_map(X,Y):-
+    X2 is X+1, print_format(X,Y),!,
+    print_map(X2,Y).
+print_format(X,Y):-
+    player(X,Y,_,_,_,_,_,_),
+    print_player.
+print_format(X,_):-
+    X < 1, print_border2.
+print_format(X,_):-
+    X > 10, print_border2.
+print_format(_,Y):-
+    Y < 1, print_border1.
+print_format(_,Y):-
+    Y > 10, print_border1.
+print_format(X,Y):-
+	location(X,Y,Loc), Loc==deadZone, !, print_inaccessible.
+print_format(_,_):-print_accessible.
 
+/* Print map elements*/
+print_border1:- write('###').
+print_border2:- write('#').
+print_player:- write(' P ').
+print_accessible:- write(' - ').
+print_inaccessible:- write('XXX').
+
+/* save */
+save(Filename) :- 
+	telling(Old), tell(Filename), 
+	listing(location/3), listing(player/8), 
+	listing(coordinate/2), listing(playersHealth/1), 
+	listing(playersWeapon/1), listing(playersArmor/1), 
+	listing(playersAmmo), listing(playersMaxInventory), 
+	listing(playersItem), listing(remainingEnemy/1), 
+	listing(enemy/5), listing(enemysHealth/1),
+	listing(enemysWeapon/1), listing(weapon/3), 
+	listing(armor/3), listing(medicine/3), 
+	listing(item/2), listing(ammo/3),
+	listing(game_started/0), listing(time/1),
+	told, tell(Old).
+
+/* loadGame */
+loadGame(Filename) :-
+	quit,
+	seeing(Old),
+	see(Filename),
+	repeat,
+	read(Data),
+	process(Data),
+	seen,
+	print('Your previous game session : ('), print(Filename), print(') succesfully loaded!'),
+	see(Old),
+	!.
+
+/*WOY JANGAN DIHAPUS*/
+process(end_of_file) :- !.
+process(Data) :- asserta(Data), fail.
+
+
+	
 /*updateEnemy*/
+
+attack :- player(X,Y,_,_,_,_,_,_), \+enemy(_,X,Y,_,_),
+	write('Oops, no enemy in this place'), fail, !.
+
+attack :- player(X,Y,_,hand,_,_,_,_), enemy(EnemyID,X,Y,Health,Power),
+	weapon(_,hand,Damage), H1 is Health-Damage, H1>0, 
+	retract(enemy(EnemyID, X, Y, Health, Power)), asserta(enemy(EnemyID, X, Y, H1, Power)),
+	write('Ketembak'), enemy_attack(Power), !.
+
+attack :- player(X,Y,_,hand,_,_,_,_), enemy(EnemyID,X,Y,Health,Power),
+	weapon(_,hand,Damage), H1 is Health-Damage, H1 =< 0, 
+	retract(enemy(EnemyID, X, Y, Health, Power)), retract(location(X,Y, EnemyID)),
+	write('Mati'), remainingEnemy(N), N1 is N-1, retract(remainingEnemy(N)),
+	asserta(remainingEnemy(N1)), !.
+
+attack :- player(X,Y,_,bambuRuncing,_,_,_,_), enemy(EnemyID,X,Y,Health,Power),
+	weapon(_,bambuRuncing,Damage), H1 is Health-Damage, H1 =< 0, 
+	retract(enemy(EnemyID, X, Y, Health, Power)), retract(location(X,Y, EnemyID)),
+	write('Mati'), remainingEnemy(N), N1 is N-1, retract(remainingEnemy(N)),
+	asserta(remainingEnemy(N1)), !.
+
+attack :- player(X,Y,_,_,Ammo,_,_,_), enemy(_,X,Y,_,_), \+get_weapon(hand),\+get_weapon(bambuRuncing), Ammo=<0,
+	write('Your weapon doesnt have ammo'), !.
+
+attack :- player(X,Y,_,Weapon,Ammo,_,_,_), enemy(EnemyID,X,Y,Health,Power),
+	weapon(_,Weapon,Damage), Ammo>0, \+get_weapon(hand), \+get_weapon(bambuRuncing),
+	H1 is Health-Damage, H1 =< 0, retract(enemy(EnemyID, X, Y, Health, Power)), 
+	retract(location(X,Y, EnemyID)), write('Mati'), remainingEnemy(N), N1 is N-1, retract(remainingEnemy(N)),
+	asserta(remainingEnemy(N1)), !.
+
+attack :- player(X,Y,_,Weapon,Ammo,_,_,_), enemy(EnemyID,X,Y,Health,Power),
+	weapon(_,Weapon,Damage),!, \+get_weapon(hand), \+get_weapon(bambuRuncing), Ammo>0, H1 is Health-Damage, H1>0, 
+	retract(enemy(EnemyID, X, Y, Health, Power)), asserta(enemy(EnemyID, X, Y, H1, Power)),
+	write('Ketembak'), enemy_attack(Power).
+
+enemy_attack(Power) :- player(_,_,_,_,_,_,_,Armor), armor(_,Armor,ArmPow),
+	weapon(_,Power, Damage), A1 is ArmPow-Damage, ArmPow > 0, 
+	retract(armor(ID,Armor,ArmPow)), asserta(armor(ID, Armor, A1)).
+
+enemy_attack(Power) :- player(_,_,Health,_,_,_,_,Armor), armor(ID,Armor,ArmPow),
+	weapon(_,Power, Damage), A1 is ArmPow-Damage, A1 =< 0, 
+	retract(armor(ID,Armor,ArmPow)), H1 is Health + ArmPow,
+	retract(player(X,Y,Health,Weapon,Ammo,ItemList,MaxInventory, Armor)),
+	asserta(player(X,Y,H1,Weapon,Ammo,ItemList,MaxInventory, Armor)), lose_con.
+
+enemy_attack(Power) :- get_health(Health), weapon(_,Power,Damage),H1 is Health-Damage, 
+	retract(player(X,Y,Health,Weapon,Ammo,ItemList,MaxInventory, Armor)),
+	asserta(player(X,Y,H1,Weapon,Ammo,ItemList,MaxInventory, Armor)), lose_con.
+  
+	
+/* terrain */
+init_terrain :-
+	forall(between(1,4,J), (
+		forall(between(1,5,I), (
+			asserta(terrain(I,J,dingDong))
+			)),
+		nl
+	)), !,
+	forall(between(7,10,J), (
+		forall(between(1,5,I), (
+			asserta(terrain(I,J,r7602))
+			)),
+		nl
+	)), !,
+	forall(between(7,10,J), (
+		forall(between(6,10,I), (
+			asserta(terrain(I,J,labIF4))
+			)),
+		nl
+	)), !,
+	forall(between(5,6,J), (
+		forall(between(1,10,I), (
+			asserta(terrain(I,J,sekre1))
+			)),
+		nl
+	)), !,
+	forall(between(1,4,J), (
+		forall(between(6,10,I), (
+			asserta(terrain(I,J,ccBarat))
+			)),
+		nl
+	)), !.
+	  
+    
